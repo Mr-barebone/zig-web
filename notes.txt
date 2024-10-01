@@ -1,0 +1,52 @@
+1. If you have a very simple Zig application (eg, single file, no dependencies) the simplest way to build your project is to use zig build-exe myapp.zig which will immediately produce an executable in the current directory.
+2. As a project grows, especially if it starts having dependencies, you might want to add a build.zig file and start using the Zig build system. Once you do that, you will be in full control of which command-line arguments are available and how they end up influencing the build.
+3. You can use zig init-exe to see what the baseline build.zig file looks like. 
+4. Note that everything is explicit so each line in the file will go towards defining the subcommands available under zig build.
+5. while the command line arguments will differ when using zig build vs zig build-exe, the two are equivalent when it comes to building Zig code.
+6. when it comes to compiling Zig code, there's a complete bidirectional mapping between zig build (given the right code in build.zig) and zig build-exe. The only difference is convenience.
+
+Releasemodes
+1. When building a Zig project with zig build or zig build-exe myapp.zig, you will normally obtain a "debug build" of the executable unfit for releases.
+2. Debug builds are designed to be fast to produce (faster to compile) at the expense of runtime performance (slower to run) and soon the Zig compiler will start making this tradeoff even more clear with the introduction of incremental compilation with in-place binary patching.
+
+ReleaseSafe:  
+    should be considered the main mode to be used for releases: 
+            it applies optimizations but still maintains certain safety checks (eg overflow and array out of bound) 
+            that are absolutely worth the overhead when releasing software that deals with tricky sources of input 
+            (eg, the internet).
+ReleaseFast : 
+     is meant to be used for software where performance is the main concern, like video games for example. 
+     This build mode not only disables the aforementioned safety checks but, to perform even more aggressive 
+     optimizations, it also assumes that those kinds of programming errors are not present in the code.
+ReleaseSmall:
+     is like ReleaseFast (ie, no safety checks), but instead of prioritizing performance, it tries to minimize 
+     executable size. This is a build mode that for example makes a lot of sense for Webassembly, since you want 
+     the smallest possible executable size and where the sandboxed runtime environment will already provide a lot of 
+     safety out of the box.
+
+    
+3. zig build-exe you can add -O ReleaseSafe (or ReleaseFast, or ReleaseSmall) to obtain the corresponding build mode.
+    zig build -Drelease-safe (or -Drelease-fast, or -Drelease-small) . 
+4. With zig build it depends on how the build script is configured. 
+    Default build scripts will feature these lines: 
+        // Standard release options allow the person running `zig build` to select
+        // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
+        const mode = b.standardOptimizeOption();
+
+        // ...
+        exe.setBuildMode(mode);
+
+Target Options:
+1. you will need to specify a target when building from a system different than yours.
+2. But you must be careful even if you plan to only make a release for your same platform.
+3. If you want to finetune the selection of instruction sets you can  -Dcpu when using zig build and -mcpu when using zig build-exe. I won't go more into these details in this post.
+    $ zig build -Dtarget=aarch64-macos
+    $ zig build-exe myapp.zig -target aarch64-macos
+
+    x86-64-linux // uses musl libc
+    x86-64-linux-gnu // uses glibc
+    x86-64-windows // uses MingW headers
+    x86-64-windows-msvc // uses MSVC headers but they need to be present in your system
+    wasm32-freestanding // you will have to use build-obj since wasm modules are not full exes
+
+4. don't forget that everything inside build.zig has to be explicitly defined, so target options work this way thanks to the following lines:
